@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { PassportVerificationService, VerificationRequest, VerificationStatusResponse } from '../services/passportService';
-import { ZkProof } from '@rarimo/zk-passport';
 
 export interface PassportVoteExecuteParams {
   registrationRoot: string;

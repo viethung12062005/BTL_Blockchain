@@ -24,13 +24,15 @@ export class PassportVerificationService {
   
   static async requestVerificationLink(request: VerificationRequest): Promise<VerificationLinkResponse> {
     const queryParams = {
+      // Lưu ý: OAuth chuẩn thường dùng 'response_type', nhưng giữ 'grant_type' 
+      // nếu backend của bạn yêu cầu đặc biệt như vậy.
       grant_type: "code",
       client_id: process.env.REACT_APP_CLIENT_ID || "hello@example.com",
       user_id: request.userId,
       redirect_uri: process.env.REACT_APP_REDIRECT_URI || `${window.location.origin}/vote/passport/callback`,
       scope: "zk-passport",
       state: String(Math.floor(Math.random() * 10000)),
-      nullifier_seed: 1000,
+      nullifier_seed: "1000",
       data: encodeURIComponent(
         JSON.stringify({
           "id": request.userId,
@@ -46,22 +48,17 @@ export class PassportVerificationService {
       )
     };
 
-    const authUrl = `${AUTH_SERVER_URL}/authorize?` + new URLSearchParams(queryParams).toString();
+    // Chuyển đổi params thành chuỗi query string
+    const queryString = new URLSearchParams(queryParams as any).toString();
+    const authUrl = `${AUTH_SERVER_URL}/authorize?${queryString}`;
     
-    try {
-      const response = await axios.get(authUrl, {
-        headers: { 'Accept': 'application/json' }
-      });
-      
-      return {
-        link: response.data.link,
-        status: response.data.status,
-        get_proof_params: response.data.get_proof_params
-      };
-    } catch (error) {
-      console.error('Error requesting verification link:', error);
-      throw new Error('Failed to request verification link');
-    }
+    // FIX: Không gọi axios.get(authUrl) ở đây vì đây là URL để người dùng truy cập (QR code/Redirect)
+    // Thay vào đó, trả về URL trực tiếp.
+    return Promise.resolve({
+      link: authUrl,
+      status: 'created',
+      // get_proof_params sẽ được xử lý bởi fallback trong requestVerificationWithParams nếu cần
+    });
   }
 
   static async checkVerificationStatus(userId: string): Promise<VerificationStatusResponse> {
@@ -76,7 +73,8 @@ export class PassportVerificationService {
       };
     } catch (error) {
       console.error('Error checking verification status:', error);
-      throw new Error('Failed to check verification status');
+      // Trả về pending thay vì throw error để tránh crash UI khi polling
+      return { status: 'pending' };
     }
   }
 
@@ -129,7 +127,6 @@ export class PassportVerificationService {
   }
 
   static async requestVerificationWithParams(request: VerificationRequest): Promise<{ get_proof_params: string }> {
-    // Simulating the API call structure from the example
     const eventId = request.eventId || 'default-event';
     
     try {

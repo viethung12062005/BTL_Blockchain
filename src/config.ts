@@ -1,37 +1,18 @@
 import { http, createConfig } from "wagmi";
-import { defineChain } from "viem";
+import { sepolia } from "wagmi/chains"; // Import Sepolia có sẵn
 import { walletConnect } from "wagmi/connectors";
 
-const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || "";
+const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || "YOUR_WALLETCONNECT_PROJECT_ID";
 
 const metadata = {
   name: "ZK Voto Digital",
   description: "Example voting app",
-  url: "https://localhost:3000/",
+  url: "http://localhost:3000/",
   icons: ["https://avatars.githubusercontent.com/u/37784886"],
 };
 
-// Define BlockDAG Testnet for wagmi/viem
-export const blockdagTestnet = defineChain({
-  id: 1043,
-  name: 'BlockDAG Testnet',
-  network: 'blockdag-testnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'BDAG',
-    symbol: 'BDAG',
-  },
-  rpcUrls: {
-    public: { http: ['https://rpc.primordial.bdagscan.com/'] },
-    default: { http: ['https://rpc.primordial.bdagscan.com/'] },
-  },
-  blockExplorers: {
-    default: { name: 'BlockDAG Explorer', url: 'https://primordial.bdagscan.com' },
-  },
-});
-
 export const wagmiConfig = createConfig({
-  chains: [blockdagTestnet],
+  chains: [sepolia], // Sử dụng mạng Sepolia
   connectors: [
     walletConnect({
       projectId,
@@ -39,6 +20,6 @@ export const wagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [blockdagTestnet.id]: http(),
+    [sepolia.id]: http(),
   },
 });

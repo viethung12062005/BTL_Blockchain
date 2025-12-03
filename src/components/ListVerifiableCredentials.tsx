@@ -10,16 +10,42 @@ interface VCAvailableProps {
 
 const ListVerifiableCredentials: React.FC<VCAvailableProps> = ({ onVCAvailable, onError }) => {
   const { t } = useTranslation();
-  const { data, error, done } = getCredentialData();
-  if (!data) {
-    onVCAvailable(false);
-  } else {
-    onVCAvailable(true);
-  }
+  const [data, setData] = React.useState<any>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState(false);
 
-  if (error) {
-    onError(error);
-  }
+  React.useEffect(() => {
+    let mounted = true;
+    getCredentialData()
+      .then(result => {
+        if (!mounted) return;
+        setData(result._data);
+        setError(result._error);
+        setDone(true);
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setError(String(err));
+        setDone(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (data) {
+      onVCAvailable(true);
+    } else {
+      onVCAvailable(false);
+    }
+  }, [data, onVCAvailable]);
+
+  React.useEffect(() => {
+    if (error) {
+      onError(error);
+    }
+  }, [error, onError]);
 
   return (
     <div>

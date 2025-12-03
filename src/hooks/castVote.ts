@@ -1,7 +1,15 @@
 import { ethers } from 'ethers';
 import { voteContractAddress, voteContractABI } from '../constants/voteContract';
 import { Groth16Proof } from 'snarkjs'
-import { ZkProof } from '@rarimo/zk-passport'
+
+export interface ZkProof {
+  proof: {
+    piA: (string | number | bigint)[];
+    piB: (string | number | bigint)[][];
+    piC: (string | number | bigint)[];
+  };
+  pubSignals: (string | number | bigint)[];
+}
 
 type BigNumberish = string | bigint
 

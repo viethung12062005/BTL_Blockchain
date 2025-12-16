@@ -13,7 +13,9 @@ export const SEPOLIA_CONFIG = {
     decimals: 18
   },
   // Dùng RPC công cộng hoặc thay bằng API Key của bạn từ Alchemy/Infura để nhanh hơn
-  rpcUrls: ['https://rpc.sepolia.org'], 
+  // Replace <YOUR_INFURA_PROJECT_ID> with your Infura project ID, e.g.
+  // 'https://sepolia.infura.io/v3/abcd1234...'
+  rpcUrls: ['https://sepolia.infura.io/v3/197e16519a134177bf189531ab66b585'], 
   blockExplorerUrls: ['https://sepolia.etherscan.io']
 };
 
@@ -24,13 +26,14 @@ export const BLOCKDAG_CHAIN_ID = SEPOLIA_CONFIG.chainId; // Giữ tên biến c�
 export const BLOCKDAG_CHAIN_ID_DECIMAL = 11155111;
 
 // Network display name
-export const NETWORK_NAME = 'Sepolia Testnet';
+export const NETWORK_NAME = 'Sepolia';
 
 // Block explorer URL for transactions
 export const BLOCK_EXPLORER_URL = 'https://sepolia.etherscan.io';
 
 // RPC URL for direct provider connections
-export const RPC_URL = 'https://rpc.sepolia.org';
+// Update this to include your Infura project id, or put the full URL in `.env`
+export const RPC_URL = 'https://sepolia.infura.io/v3/197e16519a134177bf189531ab66b585';
 
 /**
  * Gets the complete network configuration for wallet_addEthereumChain

@@ -1,0 +1,53 @@
+version: "3"
+
+services:
+  # 1. Database (Lưu trữ danh tính và thông tin thẻ đã cấp)
+  postgres:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=polygonid
+      - POSTGRES_PASSWORD=polygonid
+      - POSTGRES_DB=issuer_node
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+
+  # 2. Redis (Cache schema để chạy nhanh hơn)
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  # 3. Issuer Node API (Lõi xử lý)
+  issuer-node:
+    image: 0xpolygonid/issuer-node:latest
+    ports:
+      - "3001:3001" # API Port
+    environment:
+      - ISSUER_DATABASE_URL=postgres://polygonid:polygonid@postgres:5432/issuer_node
+      - ISSUER_REDIS_URL=redis://redis:6379/0
+      # Cấu hình mạng Blockchain (Amoy Testnet)
+      - ISSUER_ETHEREUM_URL=https://rpc-amoy.polygon.technology/
+      - ISSUER_ETHEREUM_CHAIN_ID=80002
+      # ĐIỀN PRIVATE KEY VÍ CỦA BẠN (Ví này cần có ít MATIC Amoy để trả phí gas khi cấp thẻ)
+      - ISSUER_ETHEREUM_DEFAULT_ACCOUNT=0x3d00aab260a4214eac7dd51c79ecd86570400aeecf07e56aa5c0ba9f5585670f
+      # Tên đăng nhập API (Dùng để Backend gọi vào)
+      - ISSUER_API_AUTH_USER=admin
+      - ISSUER_API_AUTH_PASSWORD=password123
+      # URL công khai (Dùng Ngrok nếu chạy local để điện thoại quét được)
+      # Lưu ý: Bạn cần chạy thêm 1 ngrok cho port 3001
+      - ISSUER_SERVER_URL=http://host.docker.internal:3001 
+    depends_on:
+      - postgres
+      - redis
+
+  # 4. Issuer UI (Giao diện web để quản lý)
+  issuer-ui:
+    image: 0xpolygonid/issuer-ui:latest
+    ports:
+      - "8088:8080"
+    environment:
+      - REACT_APP_URL=http://localhost:3001
+    depends_on:
+      - issuer-node

@@ -1,5 +1,5 @@
 // NOTE: These addresses and DIDs are from Polygon Amoy and need to be updated
-// once the contracts are deployed on BlockDAG Testnet
+// once the contracts are deployed on Sepolia Testnet
 export const issuerContractAddress = '0x51105993F8f07cd002c0CAbcd8F312b01E1A776E';
 export const issuerDID = 'did:iden3:polygon:amoy:x6x5sor7zpyex2PhwnukXns7PEfmBh4jANnX2P8Jv';
 export const userIdDID = 'did:iden3:privado:main:2ShraEMAiEibLUQGSQdsX49X7m6y83m7uJgMRfYyBt';

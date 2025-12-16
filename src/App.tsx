@@ -4,17 +4,13 @@ import './index.css';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { VoteProvider } from "./pages/VoteContext";
 import { WalletProvider } from "./context/WalletContext";
+
+// Pages
 import HomePage from "./pages/HomePage";
-import VoteValidation from "./pages/VoteValidation";
 import Vote from "./pages/Vote";
 import AdminGUI from "./pages/AdminGUI";
-import RequestFirma from "./pages/RequestFirma";
 import Results from "./pages/Results";
-import { ZkSign } from "./components/ZkSign";
-import { MobileInstructions } from "./pages/MobileInstructions";
 import PassportVote from "./pages/PassportVote";
-import PassportVerification from "./components/PassportVerification";
-import PassportCallback from "./components/PassportCallback";
 
 const App: React.FC = () => {
     return (
@@ -23,16 +19,14 @@ const App: React.FC = () => {
                 <Router>
                     <Routes>
                         <Route path="/" element={<HomePage />} />
-                        <Route path="/vote-validation" element={<VoteValidation />} />
-                        <Route path="/request-firma" element={<RequestFirma />} />
+                        {/* Khu vực Bỏ phiếu */}
                         <Route path="/vote" element={<Vote />} />
+                        {/* Khu vực Xác thực QR Code */}
                         <Route path="/vote/passport" element={<PassportVote />} />
-                        <Route path="/vote/passport/verify" element={<PassportVerification />} />
-                        <Route path="/vote/passport/callback" element={<PassportCallback />} />
+                        {/* Khu vực Admin */}
                         <Route path="/create-proposal" element={<AdminGUI />} />
+                        {/* Khu vực Kết quả */}
                         <Route path="/results" element={<Results />} />
-                        <Route path="/try-it" element={<ZkSign />} />
-                        <Route path="/mobile-connect" element={<MobileInstructions />} />
                     </Routes>
                 </Router>
             </VoteProvider>

@@ -1,114 +1,18 @@
-Verifier:
-0x8913DB59CA85D45F073685676E4b40934A811d2d
-Welcome to Remix 1.2.0 
-
-Your files are stored in indexedDB, 882.67 KB / 143.74 GB used
-
-You can use this terminal to: 
-Check transactions details and start debugging.
-Execute JavaScript scripts:
- - Input a script directly in the command line interface 
- - Select a Javascript file in the file explorer and then run `remix.execute()` or `remix.exeCurrent()`  in the command line interface 
- - Right-click on a JavaScript file in the file explorer and then click `Run` 
-The following libraries are accessible:
-ethers.js 
-Type the library name to see available commands.
-creation of Verifier pending...
-view on Etherscan view on Blockscout
-[block:9756563 txIndex:-]from: 0x7D6...649c7to: Verifier.(constructor)value: 0 weidata: 0x608...e0033logs: 0hash: 0x442...d77d2
+0x625D2b86D01fd8102501AAE71Eb78B4Ff9E60d17
+[block:9769126 txIndex:13]from: 0x7D6...649c7to: ZKFirmaDigitalVote.(constructor)value: 0 weidata: 0x608...00000logs: 0hash: 0xf09...390cd
 Verification process started...
 Verifying with Sourcify...
 Verifying with Blockscout...
 Verifying with Routescan...
 Sourcify verification successful.
-https://repo.sourcify.dev/11155111/0x8913DB59CA85D45F073685676E4b40934A811d2d/
-Routescan verification successful.
-https://testnet.routescan.io/address/0x8913DB59CA85D45F073685676E4b40934A811d2d/contract/11155111/code
-Blockscout verification successful.
-https://eth-sepolia.blockscout.com/address/0x8913DB59CA85D45F073685676E4b40934A811d2d?tab=contract
-
-ZKFirmaDigitalVote:
-0x988345b37A3eD8002caF18474B5304C66f13bE95
-Verification process started...
-Verifying with Sourcify...
-Verifying with Blockscout...
-Verifying with Routescan...
-Sourcify verification successful.
-https://repo.sourcify.dev/11155111/0x988345b37A3eD8002caF18474B5304C66f13bE95/
-Routescan verification successful.
-https://testnet.routescan.io/address/0x988345b37A3eD8002caF18474B5304C66f13bE95/contract/11155111/code
-Blockscout verification successful.
-https://eth-sepolia.blockscout.com/address/0x988345b37A3eD8002caF18474B5304C66f13bE95?tab=contract
-call to ZKFirmaDigitalVote.checkVoted errored: Error encoding arguments: TypeError: invalid BigNumberish string: empty string (argument="value", value="", code=INVALID_ARGUMENT, version=6.14.0)
+https://repo.sourcify.dev/11155111/0x625D2b86D01fd8102501AAE71Eb78B4Ff9E60d17/
 call to ZKFirmaDigitalVote.votingQuestion
 call
 [call]from: 0x7d6b88d376d7677b6d37021272a11fbb476649c7to: ZKFirmaDigitalVote.votingQuestion()data: 0x7f7...658ff
-call to ZKFirmaDigitalVote.ZKFirmaDigitalVerifierAddr
+call to ZKFirmaDigitalVote.votingQuestion
 call
-[call]from: 0x7d6b88d376d7677b6d37021272a11fbb476649c7to: ZKFirmaDigitalVote.ZKFirmaDigitalVerifierAddr()data: 0x8de...2756b
-
-Mock Verifier: 0x066C4bB7f0Fa9feBFFD6Ef126De7104307d5FCf8
-
- Welcome to Remix 1.2.0 
-
-Your files are stored in indexedDB, 3.89 MB / 143.74 GB used
-
-You can use this terminal to: 
-Check transactions details and start debugging.
-Execute JavaScript scripts:
- - Input a script directly in the command line interface 
- - Select a Javascript file in the file explorer and then run `remix.execute()` or `remix.exeCurrent()`  in the command line interface 
- - Right-click on a JavaScript file in the file explorer and then click `Run` 
-The following libraries are accessible:
-ethers.js 
-Type the library name to see available commands.
-creation of Verifier pending...
-view on Etherscan view on Blockscout
-[block:9757817 txIndex:-]from: 0x7D6...649c7to: Verifier.(constructor)value: 0 weidata: 0x608...e0033logs: 0hash: 0xc68...af00d
-Verification process started...
-Verifying with Sourcify...
-Verifying with Blockscout...
-Verifying with Routescan...
-Sourcify verification successful.
-https://repo.sourcify.dev/11155111/0x066C4bB7f0Fa9feBFFD6Ef126De7104307d5FCf8/
+[call]from: 0x7d6b88d376d7677b6d37021272a11fbb476649c7to: ZKFirmaDigitalVote.votingQuestion()data: 0x7f7...658ff
 Routescan verification successful.
-https://testnet.routescan.io/address/0x066C4bB7f0Fa9feBFFD6Ef126De7104307d5FCf8/contract/11155111/code
+https://testnet.routescan.io/address/0x625D2b86D01fd8102501AAE71Eb78B4Ff9E60d17/contract/11155111/code
 Blockscout verification successful.
-https://eth-sepolia.blockscout.com/address/0x066C4bB7f0Fa9feBFFD6Ef126De7104307d5FCf8?tab=contract
-
-
-ZKFirmaDigitalVote:0x42bb7c4142C6173F139576920118c3041B8b2Fef
-
-[block:9757844 txIndex:-]from: 0x7D6...649c7to: ZKFirmaDigitalVote.(constructor)value: 0 weidata: 0x608...00000logs: 0hash: 0x869...d7426
-status	1 Transaction mined and execution succeed
-transaction hash	0xbbfeb9ad29c0303c8e0a33329b294e05a390e05e0afcb9419f3d7e13e7d0a58a
-block hash	0x869d6f280df21462573d8f1b4fc521f94f7f2b226fcf10a83952b4774b3d7426
-block number	9757844
-contract address	0x42bb7c4142C6173F139576920118c3041B8b2Fef
-from	0x7D6B88D376d7677B6d37021272a11FBb476649c7
-to	ZKFirmaDigitalVote.(constructor)
-transaction cost	1152659 gas 
-decoded input	{
-	"string _votingQuestion": "Bầu cử HĐQT DeATuanGroup",
-	"string[] proposalDescriptions": [
-		"Ong Nguyen Van A",
-		"Ba Tran Thi B",
-		"Ong Le Van C",
-		"Ba Pham Thi D"
-	],
-	"address _verifierAddr": "0x066C4bB7f0Fa9feBFFD6Ef126De7104307d5FCf8"
-}
-decoded output	 - 
-logs	[]
-raw logs	[]
-Verification process started...
-Verifying with Sourcify...
-Verifying with Blockscout...
-Verifying with Routescan...
-Sourcify verification successful.
-https://repo.sourcify.dev/11155111/0x42bb7c4142C6173F139576920118c3041B8b2Fef/
-Routescan verification successful.
-https://testnet.routescan.io/address/0x42bb7c4142C6173F139576920118c3041B8b2Fef/contract/11155111/code
-Blockscout verification successful.
-https://eth-sepolia.blockscout.com/address/0x42bb7c4142C6173F139576920118c3041B8b2Fef?tab=contract
-transact to ZKFirmaDigitalVote.voteForProposal errored: Error encoding arguments: TypeError: invalid BigNumberish string: empty string (argument="value", value="", code=INVAL
+https://eth-sepolia.blockscout.com/address/0x625D2b86D01fd8102501AAE71Eb78B4Ff9E60d17?tab=contract

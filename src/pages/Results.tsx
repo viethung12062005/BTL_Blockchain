@@ -1,335 +1,228 @@
-import '../i18n';
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
-import { getVoteData } from "../hooks/getVoteResults";
 import { useWallet } from "../context/WalletContext";
+import { ethers } from "ethers";
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "../constants/voteContract";
 import { useTranslation } from 'react-i18next';
-import { createSmartWalletConnect, getSmartConnectButtonText } from "../utils/walletConnection";
 
-interface Proposal {
-  description: string;
+// --- Types ---
+interface ElectionSummary {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+interface CandidateResult {
+  id: number;
+  name: string;
   voteCount: number;
-};
+}
 
-const VoteResults: React.FC = () => {
+interface ElectionResult {
+  electionName: string;
+  isActive: boolean;
+  totalVotes: number;
+  candidates: CandidateResult[];
+}
+
+const Results: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [votingQuestion, setvotingQuestion] = useState<string | null>(null);
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [totalVotes, setTotalVotes] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { isConnected, connect } = useWallet();
   
-  const { isConnected, connect, account, isChangingNetwork } = useWallet();
-  
-  // Create smart wallet connect handler
-  const smartConnect = createSmartWalletConnect(connect, navigate, isConnected);
+  const [elections, setElections] = useState<ElectionSummary[]>([]);
+  const [selectedElectionId, setSelectedElectionId] = useState<number | null>(null);
+  const [resultData, setResultData] = useState<ElectionResult | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const fetchVoteResults = async () => {
+  // 1. Fetch List of Elections
+  useEffect(() => {
+    if (isConnected) {
+      fetchElectionList();
+    }
+  }, [isConnected]);
+
+  // 2. Fetch Details when selection changes
+  useEffect(() => {
+    if (selectedElectionId !== null) {
+      fetchDetails(selectedElectionId);
+    }
+  }, [selectedElectionId]);
+
+  const fetchElectionList = async () => {
+    try {
+      if (!window.ethereum) return;
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI, provider);
+      const count = await contract.electionCount();
+      
+      const list: ElectionSummary[] = [];
+      for (let i = count.toNumber(); i >= 1; i--) {
+        const e = await contract.getElection(i);
+        list.push({
+          id: i, // Lưu ý: id chính là index vòng lặp
+          name: e.name,
+          isActive: e.isActive
+        });
+      }
+      setElections(list);
+    } catch (e) {
+      console.error("Error loading list:", e);
+    }
+  };
+
+  // Logic này thay thế cho hook getVoteResults cũ
+  const fetchDetails = async (id: number) => {
     setLoading(true);
     try {
-      const {
-        _votingQuestion,
-        _proposalsArray,
-        _totalVotesBN,
-        _error } = await getVoteData();
+      if (!window.ethereum) return;
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI, provider);
+
+      // 1. Lấy thông tin cuộc bầu cử
+      const electionInfo = await contract.getElection(id);
       
-      if (_error) {
-        setError(_error);
-      } else {
-        setvotingQuestion(_votingQuestion);
-        setProposals(_proposalsArray);
-        setTotalVotes(_totalVotesBN);
-      }
-    } catch (err: any) {
-      console.error("Error fetching vote results:", err);
-      setError("Error fetching vote results.");
+      // 2. Lấy danh sách ứng viên và số phiếu
+      const candidatesData = await contract.getCandidates(id);
+
+      let total = 0;
+      const formattedCandidates: CandidateResult[] = candidatesData.map((c: any) => {
+        const count = c.voteCount.toNumber();
+        total += count;
+        return {
+          id: c.id.toNumber(),
+          name: c.name,
+          voteCount: count
+        };
+      });
+
+      setResultData({
+        electionName: electionInfo.name,
+        isActive: electionInfo.isActive,
+        totalVotes: total,
+        candidates: formattedCandidates
+      });
+
+    } catch (e) {
+      console.error("Error fetching details:", e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isConnected && account && !isChangingNetwork) {
-      fetchVoteResults();
-    } else if (!isConnected) {
-      setLoading(false);
-      setError("Wallet no yet available.");
-    }
-  }, [isConnected, account, isChangingNetwork]);
-
-  const NetworkChangingSection = () => (
-    <div style={{
-      padding: "60px 20px",
-      textAlign: "center"
-    }}>
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        flexDirection: "column"
-      }}>
-        <div style={{
-          border: "5px solid #f3f3f3",
-          borderTop: "5px solid #5856D6",
-          borderRadius: "50%",
-          width: "50px",
-          height: "50px",
-          animation: "spin 1s linear infinite",
-          marginBottom: "20px"
-        }}></div>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-        <p style={{ fontSize: "18px", color: "#4a5568" }}>Switching Network</p>
+  // --- RENDER HELPERS ---
+  const renderProgressBar = (votes: number, total: number) => {
+    const percent = total > 0 ? (votes / total) * 100 : 0;
+    return (
+      <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+        <div 
+          className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" 
+          style={{ width: `${percent}%` }}
+        ></div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
       
-      <main style={{ 
-        flex: "1", 
-        padding: '40px 20px',
-        fontFamily: 'Arial, sans-serif',
-        backgroundColor: "#f8f9fa" 
-      }}>
-        <div style={{
-          maxWidth: "1000px",
-          margin: "0 auto",
-          backgroundColor: "white",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-          overflow: "hidden"
-        }}>
-          {isChangingNetwork ? (
-            <NetworkChangingSection />
-          ) : loading ? (
-            <div style={{
-              padding: "80px 20px",
-              textAlign: "center"
-            }}>
-              <div style={{
-                display: "inline-block",
-                width: "50px",
-                height: "50px",
-                border: "5px solid #f3f3f3",
-                borderTop: "5px solid #5856D6",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-                marginBottom: "20px"
-              }}></div>
-              <style>{`
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-              `}</style>
-              <p style={{ fontSize: "18px" }}>{t('common.loading')}</p>
-            </div>
-          ) : error ? (
-            <div style={{
-              padding: "60px 20px",
-              textAlign: "center"
-            }}>
-              <div style={{
-                fontSize: "60px",
-                marginBottom: "20px",
-                color: "#d9534f"
-              }}>
-                ⚠️
-              </div>
-              <h2 style={{ 
-                marginBottom: "20px", 
-                color: "#333" 
-              }}>{t('common.error')}</h2>
-              <p style={{ 
-                fontSize: "16px", 
-                color: "#666",
-                marginBottom: "30px",
-                maxWidth: "600px",
-                margin: "0 auto 30px"
-              }}>
-                {error === "Wallet no yet available." ? 
-                  t('common.walletNotConnected') : 
-                  error}
-              </p>
-              {(error === "Wallet no yet available." || !isConnected) && (
-                <button 
-                  onClick={smartConnect}
-                  style={{
-                    backgroundColor: "#5856D6",
-                    color: "white",
-                    border: "none",
-                    padding: "12px 25px",
-                    borderRadius: "5px",
-                    fontSize: "16px",
-                    cursor: "pointer",
-                    fontWeight: "500",
-                    transition: "background-color 0.3s"
-                  }}
-                  onMouseOver={(e) => 
-                    (e.currentTarget.style.backgroundColor = "#4745c0")
-                  }
-                  onMouseLeave={(e) => 
-                    (e.currentTarget.style.backgroundColor = "#5856D6")
-                  }
-                >
-                  {getSmartConnectButtonText(isConnected, t)}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div style={{ padding: '30px' }}>
-              {isConnected && account && (
-                <div style={{
-                  backgroundColor: "#f0fff4",
-                  color: "#38a169",
-                  border: "1px solid #c6f6d5",
-                  borderRadius: "6px",
-                  padding: "12px",
-                  marginBottom: "20px",
-                  textAlign: "center",
-                  fontSize: "14px"
-                }}>
-                  <p style={{ margin: 0 }}>{t('common.connectedAs')}: {account}</p>
-                </div>
-              )}
-            
-              <h1 style={{ 
-                textAlign: 'center', 
-                marginBottom: '25px',
-                color: "#333"
-              }}>
-                {t('common.voteResults')}: {votingQuestion}
-              </h1>
-              
-              <div style={{
-                backgroundColor: "#f8fafc",
-                padding: "15px",
-                borderRadius: "8px",
-                marginBottom: "25px",
-                textAlign: "center"
-              }}>
-                <strong>{t('common.totalVotes')}:</strong> {totalVotes}
-              </div>
+      <main className="flex-1 container mx-auto p-4 md:p-8 max-w-5xl">
+        <h1 className="text-3xl font-bold mb-8 text-gray-800 text-center">
+          {t('common.voteResults') || "Election Results"}
+        </h1>
 
-              {proposals.length > 0 ? (
-                <table style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  boxShadow: '0 2px 5px rgba(0, 0, 0, 0.08)',
-                  borderRadius: "5px",
-                  overflow: "hidden"
-                }}>
-                  <thead>
-                    <tr>
-                      <th style={{
-                        padding: '15px',
-                        backgroundColor: '#5856D6',
-                        color: 'white',
-                        textAlign: 'left',
-                        fontWeight: "600"
-                      }}>
-                        {t('common.proposal')}
-                      </th>
-                      <th style={{
-                        padding: '15px',
-                        backgroundColor: '#5856D6',
-                        color: 'white',
-                        textAlign: 'center',
-                        width: "150px",
-                        fontWeight: "600"
-                      }}>
-                        {t('common.votes')}
-                      </th>
-                      <th style={{
-                        padding: '15px',
-                        backgroundColor: '#5856D6',
-                        color: 'white',
-                        textAlign: 'center',
-                        width: "180px",
-                        fontWeight: "600"
-                      }}>
-                        {t('common.percentage')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proposals.map((proposal, index) => (
-                      <tr
-                        key={index}
-                        style={{
-                          backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f9ff',
-                          transition: 'background-color 0.3s'
-                        }}
-                      >
-                        <td style={{ 
-                          padding: '15px',
-                          borderBottom: '1px solid #eee' 
-                        }}>
-                          {proposal.description}
-                        </td>
-                        <td style={{ 
-                          padding: '15px', 
-                          textAlign: 'center',
-                          fontWeight: "600",
-                          borderBottom: '1px solid #eee'
-                        }}>
-                          {proposal.voteCount}
-                        </td>
-                        <td style={{ 
-                          padding: '15px', 
-                          textAlign: 'center',
-                          fontWeight: "600",
-                          borderBottom: '1px solid #eee'
-                        }}>
-                          {totalVotes > 0 
-                            ? `${((proposal.voteCount / totalVotes) * 100).toFixed(1)}%` 
-                            : '0%'}
-                          <div style={{
-                            width: '100%',
-                            backgroundColor: '#e9ecef',
-                            borderRadius: '4px',
-                            height: '8px',
-                            marginTop: '8px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{
-                              width: `${totalVotes > 0 ? (proposal.voteCount / totalVotes) * 100 : 0}%`,
-                              backgroundColor: '#5856D6',
-                              height: '100%'
-                            }}></div>
+        {!isConnected ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 mb-4">Connect wallet to view public blockchain results.</p>
+            <button onClick={connect} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition">
+              Connect Wallet
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* LEFT COLUMN: Election List */}
+            <div className="md:col-span-1 bg-white rounded-xl shadow p-4 h-fit">
+              <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">Select Election</h3>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                {elections.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => setSelectedElectionId(e.id)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors border ${
+                      selectedElectionId === e.id 
+                        ? "bg-indigo-50 border-indigo-500 text-indigo-700 font-semibold"
+                        : "hover:bg-gray-50 border-transparent text-gray-600"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span>#{e.id} {e.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${e.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                        {e.isActive ? 'Open' : 'Closed'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+                {elections.length === 0 && <p className="text-gray-400 text-sm text-center">No elections found.</p>}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Detailed Results */}
+            <div className="md:col-span-2">
+              {loading ? (
+                <div className="flex justify-center p-12 bg-white rounded-xl shadow">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                </div>
+              ) : resultData ? (
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                  <div className="bg-indigo-600 p-6 text-white">
+                    <h2 className="text-2xl font-bold">{resultData.electionName}</h2>
+                    <div className="flex gap-4 mt-2 text-indigo-100 text-sm">
+                      <span>Total Votes: <strong>{resultData.totalVotes}</strong></span>
+                      <span>Status: <strong>{resultData.isActive ? "Ongoing" : "Ended"}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    {/* Sorting for Display: Most votes first */}
+                    {[...resultData.candidates]
+                      .sort((a, b) => b.voteCount - a.voteCount)
+                      .map((c, index) => (
+                      <div key={c.id} className="mb-6 last:mb-0">
+                        <div className="flex justify-between items-end mb-1">
+                          <div className="flex items-center">
+                            {index === 0 && resultData.totalVotes > 0 && (
+                              <span className="text-xl mr-2">👑</span>
+                            )}
+                            <span className="font-bold text-gray-800 text-lg">{c.name}</span>
                           </div>
-                        </td>
-                      </tr>
+                          <div className="text-right">
+                            <span className="block font-bold text-indigo-600">{c.voteCount} votes</span>
+                            <span className="text-xs text-gray-500">
+                              {resultData.totalVotes > 0 
+                                ? ((c.voteCount / resultData.totalVotes) * 100).toFixed(1) 
+                                : 0}%
+                            </span>
+                          </div>
+                        </div>
+                        {renderProgressBar(c.voteCount, resultData.totalVotes)}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               ) : (
-                <div style={{
-                  textAlign: "center",
-                  padding: "30px",
-                  color: "#666"
-                }}>
-                  {t('common.noProposalsFound')}
+                <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">
+                  Select an election from the list to view results.
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
-      
       <Footer />
     </div>
   );
 };
 
-export default VoteResults;
+export default Results;

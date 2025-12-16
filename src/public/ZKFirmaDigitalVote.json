@@ -227,6 +227,89 @@
     },
     {
       "inputs": [],
+      "name": "voteParams",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "votingQuestion",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "identityCreationTimestampUpperBound",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "birthDateLowerbound",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expirationDateLowerBound",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "identityCounterUpperBound",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "voteScope",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "registrationRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentDate",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "userPayload",
+          "type": "bytes"
+        },
+        {
+          "internalType": "tuple",
+          "components": [
+            {
+              "internalType": "uint256[2]",
+              "name": "a",
+              "type": "uint256[2]"
+            },
+            {
+              "internalType": "uint256[2][2]",
+              "name": "b",
+              "type": "uint256[2][2]"
+            },
+            {
+              "internalType": "uint256[2]",
+              "name": "c",
+              "type": "uint256[2]"
+            }
+          ],
+          "name": "zkPoints_",
+          "type": "tuple"
+        }
+      ],
+      "name": "execute",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "votingQuestion",
       "outputs": [
         {

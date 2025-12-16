@@ -1,442 +1,232 @@
-import '../i18n';
+import React, { useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
-import { getVoteData } from '../hooks/castVote';
-import { getVoteScope } from '../hooks/getCredentialData';
-import { VoteOptionsDisplay } from '../components/VoteOptionsDisplay';
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useVote } from "./VoteContext";
 import { useWallet } from "../context/WalletContext";
-import { createSmartWalletConnect, getSmartConnectButtonText } from "../utils/walletConnection";
+import { useVote } from "./VoteContext";
+import { useNavigate } from "react-router-dom";
+import { ethers } from "ethers";
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "../constants/voteContract";
+import { VoteOptionsDisplay } from "../components/VoteOptionsDisplay";
+import { useTranslation } from 'react-i18next';
+
+// --- Định nghĩa kiểu dữ liệu ---
+interface Election {
+  id: number;
+  name: string;
+  credentialSchema: string;
+  credentialQuery: string;
+  endTime: number;
+  isActive: boolean;
+}
+
+interface Candidate {
+  id: number;
+  name: string;
+  voteCount: number;
+}
 
 const Vote: React.FC = () => {
   const { t } = useTranslation();
-  const [voteData, setVoteData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [canVote, setCanVote] = useState(false);
-  const { verifiableCredential, setVoteScope, voteScope, authMethod } = useVote();
-  
-  const { isConnected, connect, account, isChangingNetwork } = useWallet();
+  const { isConnected, connect } = useWallet();
+  const { hasVerifiedForElection } = useVote();
   const navigate = useNavigate();
-  
-  // Create smart wallet connect handler
-  const smartConnect = createSmartWalletConnect(connect, navigate, isConnected);
-  
-  // Usamos useRef para mantener un seguimiento de si el componente está montado
-  const isMounted = useRef(true);
 
-  // Limpiar el indicador cuando el componente se desmonte
+  // State
+  const [elections, setElections] = useState<Election[]>([]);
+  const [selectedElection, setSelectedElection] = useState<Election | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // 1. Tải danh sách bầu cử khi vào trang
   useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+    if (isConnected) fetchElections();
+  }, [isConnected]);
 
-  // Get vote scope data - memoizado para evitar recreación
-  const fetchVoteScope = useCallback(async () => {
-    if (!isConnected || !account) {
-      if (isMounted.current) {
-        setError("Wallet no yet available.");
-        setVoteScope(0);
-        setLoading(false);
-      }
-      return;
-    }
-    
+  const fetchElections = async () => {
     try {
-      const { _voteScope, _error } = await getVoteScope();
-      // Solo actualizar si el componente sigue montado
-      if (isMounted.current) {
-        if (_error === "No election yet available for user.") {
-          setVoteScope(0);
-        } else if (_error === "Wallet no yet available.") {
-          setVoteScope(0);
-        } else {
-          setVoteScope(_voteScope);
-        }
-        setError(_error);
-      }
-    } catch (err) {
-      if (isMounted.current) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      }
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
-    }
-  }, [isConnected, account, setVoteScope]);
-
-  // Efecto para manejar la verificación inicial y navegación
-  useEffect(() => {
-    if (!isConnected) {
-      setLoading(false);
-      setError("Wallet no yet available.");
-      return;
-    }
-    
-    if (verifiableCredential === null && voteScope === null) {
-      // No queremos actualizar estados cuando el componente está en proceso de navegación
-      // así que primero verificamos el voteScope y luego navegamos
-      fetchVoteScope().then(() => {
-        // Solo navegamos si el componente sigue montado
-        if (isMounted.current) {
-          navigate("/vote/passport");
-        }
-      });
-    }
-  }, [isConnected, account, verifiableCredential, voteScope, navigate, fetchVoteScope]);
-
-  // Get vote data - memoizado para evitar recreación
-  const fetchVoteData = useCallback(async () => {
-    if (!isConnected || !account) {
-      if (isMounted.current) {
-        setCanVote(false);
-        setVoteData(null);
-        setError("Wallet no yet available.");
-        setLoading(false);
-      }
-      return;
-    }
-    
-    try {
-      const { _data, _error } = await getVoteData();
+      setLoading(true);
+      if (!window.ethereum) return;
       
-      // Solo actualizar si el componente sigue montado
-      if (isMounted.current) {
-        // console.log("Datos de votación recibidos:", _data);
-        
-        if (_error === "No proposals yet available for user.") {
-          setCanVote(false);
-          setVoteData(null);
-        } else if (_error === "Wallet no yet available.") {
-          setCanVote(false);
-          setVoteData(null);
-        } else if (!_data || !_data.votingQuestion || !_data.proposals) {
-          console.error("Datos de votación incompletos:", _data);
-          setCanVote(false);
-          setVoteData(null);
-          setError("Datos de votación incompletos");
-        } else {
-          setCanVote(true);
-          setVoteData(_data);
-        }
-        
-        if (_error) {
-          setError(_error);
-        }
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI, provider);
+
+      // Lấy tổng số cuộc bầu cử
+      const count = await contract.electionCount();
+      const loadedElections: Election[] = [];
+
+      // Lặp ngược từ mới nhất về cũ nhất
+      for (let i = count.toNumber(); i >= 1; i--) {
+        const e = await contract.getElection(i);
+        loadedElections.push({
+          id: i, // ID dùng để truy vấn contract
+          name: e.name,
+          credentialSchema: e.credentialSchema,
+          credentialQuery: e.credentialQuery,
+          endTime: e.endTime.toNumber(),
+          isActive: e.isActive
+        });
       }
+      setElections(loadedElections);
     } catch (err) {
-      if (isMounted.current) {
-        console.error("Error al obtener datos de votación:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-        setCanVote(false);
-        setVoteData(null);
-      }
+      console.error("Fetch elections failed:", err);
     } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [isConnected, account]);
-  
-  // Efecto para obtener datos de votación cuando cambian credenciales o conexión
-  useEffect(() => {
-    if (verifiableCredential !== null && isConnected && account) {
-      fetchVoteData();
+  };
+
+  // 2. Xử lý khi người dùng chọn một cuộc bầu cử
+  const handleSelectElection = async (election: Election) => {
+    if (!election.isActive) {
+      alert("This election has ended.");
+      return;
     }
-    
-    // Limpieza: es buena práctica cancelar peticiones pendientes, pero aquí no
-    // es posible ya que getVoteData no da un mecanismo para cancelar.
-    // Por eso usamos isMounted para evitar actualizaciones si desmonta.
-  }, [verifiableCredential, isConnected, account, fetchVoteData]);
+
+    // Kiểm tra Context: Người dùng đã verify cho cuộc bầu cử này chưa?
+    const isVerified = hasVerifiedForElection(election.id);
+
+    if (!isVerified) {
+      const encodedQuery = encodeURIComponent(election.credentialQuery);
+      // TRƯỜNG HỢP 1: Chưa Verify -> Chuyển sang trang quét QR
+      console.log(`Redirecting to verify with Query:`, election.credentialQuery);
+      navigate(`/vote/passport?electionId=${election.id}&schema=${election.credentialSchema}&query=${encodedQuery}`);
+    } else {
+      // TRƯỜNG HỢP 2: Đã Verify -> Vào phòng bỏ phiếu
+      setSelectedElection(election);
+      await fetchCandidates(election.id);
+    }
+  };
+
+  // Lấy danh sách ứng viên từ Contract
+  const fetchCandidates = async (electionId: number) => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI, provider);
+      const data = await contract.getCandidates(electionId);
+      
+      const formatted = data.map((c: any) => ({
+        id: c.id.toNumber(),
+        name: c.name,
+        voteCount: c.voteCount.toNumber()
+      }));
+      setCandidates(formatted);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Callback khi bỏ phiếu thành công
+  const handleVoteSuccess = () => {
+    alert("🎉 Vote cast successfully!");
+    setSelectedElection(null); // Quay lại danh sách
+    fetchElections(); // Cập nhật lại số liệu
+  };
+
+  // --- RENDER GIAO DIỆN ---
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50 text-center">
+          <h2 className="text-3xl font-bold mb-4 text-gray-800">Secure Electronic Voting</h2>
+          <p className="text-gray-600 mb-8 max-w-md">
+            Decentralized voting platform protected by Polygon ID Zero-Knowledge Proofs.
+          </p>
+          <button onClick={connect} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold hover:bg-indigo-700 transition shadow-lg transform hover:-translate-y-1">
+            Connect Wallet to Start
+          </button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column"
-    }}>
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
-      <main style={{
-        flex: "1",
-        backgroundColor: "#f8f9fa",
-        padding: "40px 20px 80px"
-      }}>
-        <div style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-          backgroundColor: "white",
-          borderRadius: "10px",
-          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
-          overflow: "hidden"
-        }}>
-          <div style={{
-            backgroundColor: "#5856D6",
-            padding: "25px 30px",
-            color: "white"
-          }}>
-            <h1 style={{
-              fontSize: "1.75rem",
-              fontWeight: "600",
-              margin: "0"
-            }}>{t('voting.title')}</h1>
-          </div>
-          
-          <div style={{
-            padding: "30px"
-          }}>
-            {isConnected && account && (
-              <div style={{
-                backgroundColor: "#f0fff4",
-                color: "#38a169",
-                border: "1px solid #c6f6d5",
-                borderRadius: "6px",
-                padding: "12px",
-                marginBottom: "20px",
-                textAlign: "center",
-                fontSize: "14px"
-              }}>
-                <p style={{ margin: 0 }}>{t('common.connectedAs')}: {account}</p>
-              </div>
-            )}
+      <main className="flex-1 container mx-auto p-4 md:p-8 max-w-5xl">
+        
+        {/* VIEW 1: DANH SÁCH BẦU CỬ (Hiển thị khi chưa chọn cuộc nào) */}
+        {!selectedElection ? (
+          <div>
+            <h1 className="text-3xl font-bold mb-8 text-gray-800 border-b pb-4">Ongoing Elections</h1>
             
-            <h2 style={{
-              fontSize: "1.4rem",
-              color: "#333",
-              marginBottom: "20px",
-              fontWeight: "500"
-            }}>{t('vc')}</h2>
-            
-            {isChangingNetwork ? (
-              <div style={{
-                backgroundColor: "#f8fafc",
-                padding: "20px",
-                borderRadius: "8px",
-                textAlign: "center",
-                border: "1px solid #e2e8f0",
-                marginBottom: "20px"
-              }}>
-                <div style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: "16px"
-                }}>
-                  <div style={{
-                    border: "4px solid #f3f3f3",
-                    borderTop: "4px solid #5856D6",
-                    borderRadius: "50%",
-                    width: "32px",
-                    height: "32px",
-                    animation: "spin 1s linear infinite"
-                  }}></div>
-                  <style>{`
-                    @keyframes spin {
-                      0% { transform: rotate(0deg); }
-                      100% { transform: rotate(360deg); }
-                    }
-                  `}</style>
-                </div>
-                <p style={{ color: "#4a5568", margin: "0" }}>
-                  {t('common.switchingNetwork')}
-                </p>
+            {loading ? (
+              <div className="flex justify-center p-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
               </div>
-            ) : error ? (
-              <div style={{
-                padding: "16px",
-                backgroundColor: "#fff5f5",
-                border: "1px solid #fed7d7",
-                borderRadius: "6px",
-                color: "#e53e3e",
-                marginBottom: "20px"
-              }}>
-                <p style={{ margin: "0" }}>{error}</p>
-                
-                {error === "Wallet no yet available." && (
-                  <div style={{ marginTop: "15px", textAlign: "center" }}>
-                    <button 
-                      onClick={smartConnect}
-                      style={{
-                        backgroundColor: "#5856D6",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "10px 20px",
-                        fontSize: "0.9rem",
-                        fontWeight: "500",
-                        cursor: "pointer"
-                      }}
-                    >
-                      {getSmartConnectButtonText(isConnected, t)}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : loading ? (
-              <div style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                padding: "40px 0"
-              }}>
-                <div style={{
-                  border: "4px solid #f3f3f3",
-                  borderTop: "4px solid #5856D6",
-                  borderRadius: "50%",
-                  width: "40px",
-                  height: "40px",
-                  animation: "spin 1s linear infinite"
-                }}></div>
-                <style>{`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}</style>
-              </div>
-            ) : !isConnected ? (
-              <div style={{
-                backgroundColor: "#f8fafc",
-                borderRadius: "8px",
-                padding: "30px",
-                textAlign: "center",
-                border: "1px solid #e2e8f0"
-              }}>
-                <div style={{
-                  marginBottom: "20px",
-                  fontSize: "24px",
-                  color: "#5856D6"
-                }}>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="36" 
-                    height="36" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
-                    <path d="M20 12v4h-4a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4" />
-                    <path d="M20 12h-4" />
-                  </svg>
-                </div>
-                <p style={{
-                  fontSize: "1.1rem",
-                  color: "#4a5568",
-                  marginBottom: "20px"
-                }}>{t('common.metamaskLogin')}.</p>
-                <button 
-                  onClick={smartConnect}
-                  style={{
-                    backgroundColor: "#5856D6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "12px 24px",
-                    fontSize: "1rem",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "background-color 0.2s ease"
-                  }}
-                >
-                  {getSmartConnectButtonText(isConnected, t)}
-                </button>
-              </div>
-            ) : !canVote || !voteData ? (
-              <div style={{
-                backgroundColor: "#f8fafc",
-                borderRadius: "8px",
-                padding: "30px",
-                textAlign: "center",
-                border: "1px solid #e2e8f0"
-              }}>
-                <div style={{
-                  marginBottom: "20px",
-                  fontSize: "24px",
-                  color: "#5856D6"
-                }}>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="36" 
-                    height="36" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  >
-                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                    <polyline points="13 2 13 9 20 9"></polyline>
-                  </svg>
-                </div>
-                <p style={{
-                  fontSize: "1.1rem",
-                  color: "#4a5568",
-                  marginBottom: "20px"
-                }}>{t('voting.noProposalsAvailable')}</p>
-                <button 
-                  onClick={() => navigate("/results")}
-                  style={{
-                    backgroundColor: "#5856D6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "12px 24px",
-                    fontSize: "1rem",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "background-color 0.2s ease"
-                  }}
-                >
-                  {t('common.viewResults')}
-                </button>
-              </div>
-            ) : !voteData.votingQuestion || !voteData.proposals ? (
-              <div style={{
-                backgroundColor: "#f8fafc",
-                borderRadius: "8px",
-                padding: "30px",
-                textAlign: "center",
-                border: "1px solid #e2e8f0"
-              }}>
-                <div style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: "16px"
-                }}>
-                  <div style={{
-                    border: "4px solid #f3f3f3",
-                    borderTop: "4px solid #5856D6",
-                    borderRadius: "50%",
-                    width: "32px",
-                    height: "32px",
-                    animation: "spin 1s linear infinite"
-                  }}></div>
-                </div>
-                <p style={{
-                  fontSize: "1.1rem",
-                  color: "#4a5568",
-                  marginBottom: "20px"
-                }}>Cargando datos de votación...</p>
+            ) : elections.length === 0 ? (
+              <div className="text-center p-12 bg-white rounded-xl shadow border border-dashed border-gray-300">
+                <p className="text-gray-500 text-lg">No active elections found.</p>
               </div>
             ) : (
-              <VoteOptionsDisplay voteData={voteData} />
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {elections.map((election) => (
+                  <div key={election.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition duration-300 overflow-hidden border border-gray-100 flex flex-col">
+                    <div className="p-6 flex-1">
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                          #{election.id}
+                        </span>
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${election.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {election.isActive ? 'ACTIVE' : 'ENDED'}
+                        </span>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{election.name}</h3>
+                      
+                      <div className="space-y-2 text-sm text-gray-600 mt-4">
+                        <div className="flex items-center">
+                          <span className="mr-2">🔐</span>
+                          <span>Required: <strong>{election.credentialSchema}</strong></span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="mr-2">⏳</span>
+                          <span>Ends: {new Date(election.endTime * 1000).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 border-t border-gray-100">
+                      <button 
+                        onClick={() => handleSelectElection(election)}
+                        disabled={!election.isActive}
+                        className={`w-full py-3 rounded-lg font-bold text-sm transition-all ${
+                          !election.isActive 
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : hasVerifiedForElection(election.id)
+                              ? "bg-green-600 hover:bg-green-700 text-white shadow-md"
+                              : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                        }`}
+                      >
+                        {election.isActive 
+                          ? (hasVerifiedForElection(election.id) ? "🗳️ Enter Voting Booth" : "🛡️ Verify Identity & Vote")
+                          : "Results Only"
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        ) : (
+          
+          /* VIEW 2: GIAO DIỆN BỎ PHIẾU (Sử dụng Component VoteOptionsDisplay) */
+          <div className="max-w-3xl mx-auto">
+            <VoteOptionsDisplay 
+              electionId={selectedElection.id}
+              electionName={selectedElection.name}
+              candidates={candidates}
+              onSuccess={handleVoteSuccess}
+              onBack={() => setSelectedElection(null)}
+            />
+          </div>
+        )}
       </main>
       <Footer />
     </div>
   );
-}
+};
 
 export default Vote;

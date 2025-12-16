@@ -49,17 +49,17 @@ export const useWalletConnection = () => {
         const signer = provider.getSigner();
         const account = await signer.getAddress();
 
-        // Check if on the correct network (BlockDAG)
-        if (chainId !== BLOCKDAG_CHAIN_ID) {
-          setState({
-            isConnected: true,
-            account,
-            error: "Please switch to BlockDAG Testnet",
-            chainId,
-            provider,
-            signer,
-            isChangingNetwork: false
-          });
+          // Check if on the correct network (Sepolia)
+          if (chainId !== BLOCKDAG_CHAIN_ID) {
+            setState({
+              isConnected: true,
+              account,
+              error: "Please switch to Sepolia Testnet",
+              chainId,
+              provider,
+              signer,
+              isChangingNetwork: false
+            });
         } else {
           setState({
             isConnected: true,
@@ -95,8 +95,8 @@ export const useWalletConnection = () => {
     }
   }, []);
 
-  // Function to switch to BlockDAG Testnet network
-  const switchToBlockDAG = useCallback(async (): Promise<boolean> => {
+  // Function to switch to Sepolia Testnet network
+  const switchToSepolia = useCallback(async (): Promise<boolean> => {
     if (!isMetaMaskAvailable()) return false;
     if (isChangingNetworkRef.current) return false;
 
@@ -127,20 +127,20 @@ export const useWalletConnection = () => {
           isChangingNetworkRef.current = false;
           return true;
         } catch (addError: any) {
-          console.error('Failed to add BlockDAG Testnet:', addError);
+          console.error('Failed to add Sepolia Testnet:', addError);
           setState(prev => ({ 
             ...prev, 
-            error: "Failed to add BlockDAG Testnet",
+            error: "Failed to add Sepolia Testnet",
             isChangingNetwork: false
           }));
           isChangingNetworkRef.current = false;
           return false;
         }
       }
-      console.error('Failed to switch to BlockDAG Testnet:', error);
+      console.error('Failed to switch to Sepolia Testnet:', error);
       setState(prev => ({ 
         ...prev, 
-        error: "Failed to switch to BlockDAG Testnet",
+        error: "Failed to switch to Sepolia Testnet",
         isChangingNetwork: false
       }));
       isChangingNetworkRef.current = false;
@@ -189,7 +189,7 @@ export const useWalletConnection = () => {
         setState({
           isConnected: true,
           account,
-          error: chainId !== BLOCKDAG_CHAIN_ID ? "Switching to BlockDAG Testnet..." : null,
+          error: chainId !== BLOCKDAG_CHAIN_ID ? "Switching to Sepolia Testnet..." : null,
           chainId,
           provider,
           signer,
@@ -197,9 +197,9 @@ export const useWalletConnection = () => {
         });
         
         if (chainId !== BLOCKDAG_CHAIN_ID) {
-          console.log("Connected but on wrong network. Switching to BlockDAG Testnet...");
+          console.log("Connected but on wrong network. Switching to Sepolia Testnet...");
           setTimeout(async () => {
-            await switchToBlockDAG();
+            await switchToSepolia();
           }, 500);
         }
       }
@@ -211,20 +211,20 @@ export const useWalletConnection = () => {
         isConnected: false
       }));
     }
-  }, [switchToBlockDAG]);
+  }, [switchToSepolia]);
 
   const handleChainChanged = useCallback(async (chainId: string) => {
     console.log("Chain changed to:", chainId);
     // Simply update the state with the new chain
     await checkWalletState();
     
-    // Only try to switch to BlockDAG if user is connected and we're not already changing
+    // Only try to switch to Sepolia if user is connected and we're not already changing
     if (chainId !== BLOCKDAG_CHAIN_ID && state.isConnected && !isChangingNetworkRef.current) {
-      console.log("Not on BlockDAG Testnet. Current chain:", chainId);
-      console.log("Attempting to switch to BlockDAG Testnet automatically");
-      await switchToBlockDAG();
+      console.log("Not on Sepolia Testnet. Current chain:", chainId);
+      console.log("Attempting to switch to Sepolia Testnet automatically");
+      await switchToSepolia();
     }
-  }, [state.isConnected, checkWalletState, switchToBlockDAG]);
+  }, [state.isConnected, checkWalletState, switchToSepolia]);
 
   useEffect(() => {
     // Verificar el estado inicial
@@ -267,6 +267,6 @@ export const useWalletConnection = () => {
     ...state,
     connect,
     checkWalletState,
-    switchToBlockDAG
+    switchToSepolia
   };
 };

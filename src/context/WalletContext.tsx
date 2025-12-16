@@ -5,7 +5,7 @@ import type { WalletState } from '../hooks/useWalletConnection';
 interface WalletContextType extends WalletState {
   connect: () => Promise<void>;
   checkWalletState: () => Promise<void>;
-  switchToBlockDAG: () => Promise<boolean>;
+  switchToSepolia: () => Promise<boolean>;
 }
 
 const defaultContext: WalletContextType = {
@@ -18,14 +18,14 @@ const defaultContext: WalletContextType = {
   isChangingNetwork: false,
   connect: async () => {},
   checkWalletState: async () => {},
-  switchToBlockDAG: async () => false
+  switchToSepolia: async () => false
 };
 
 const WalletContext = createContext<WalletContextType>(defaultContext);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const wallet = useWalletConnection();
-  
+
   return (
     <WalletContext.Provider value={{ 
       ...wallet,

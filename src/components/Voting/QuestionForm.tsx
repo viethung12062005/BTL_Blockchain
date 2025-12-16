@@ -1,261 +1,119 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { createProposal } from "../../hooks/CreateProposal";
+import React, { useState } from 'react';
+import { Button, Card, Heading, Box, Flex } from "rimble-ui";
+import { useTranslation } from 'react-i18next';
 
-function QuestionForm() {
+interface QuestionFormProps {
+  onCreateElection: (name: string, candidates: string[], schema: string, duration: number) => void;
+  isSubmitting: boolean;
+}
+
+export const QuestionForm: React.FC<QuestionFormProps> = ({ onCreateElection, isSubmitting }) => {
   const { t } = useTranslation();
   
-  // State for the question text
-  const [question, setQuestion] = useState("");
-  // State for the possible options; start with one empty option field
-  const [options, setOptions] = useState([""]);
-  const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<boolean | null>(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [electionName, setElectionName] = useState("");
+  const [candidatesStr, setCandidatesStr] = useState("");
+  const [schema, setSchema] = useState("VotingCredential");
+  const [duration, setDuration] = useState(60);
 
-  // Update question state
-  const handleQuestionChange = (e) => {
-    setQuestion(e.target.value);
-  };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate cơ bản
+    const candidates = candidatesStr.split(',').map(c => c.trim()).filter(c => c !== "");
+    
+    if (!electionName) return alert(t('common.error') + ": Missing Election Name");
+    if (candidates.length < 2) return alert(t('common.error') + ": At least 2 candidates required");
 
-  // Update a specific option
-  const handleoptionChange = (index, e) => {
-    const newoptions = [...options];
-    newoptions[index] = e.target.value;
-    setOptions(newoptions);
-  };
-
-  // Add a new empty option field
-  const addOptionField = () => {
-    setOptions([...options, ""]);
-  };
-
-  // Remove an option field at a specific index
-  const removeoptionField = (index) => {
-    setOptions(options.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    // You can process your question and options here
-    console.log("Question:", question);
-    console.log("Options:", options);
-    try {
-      const { _result, _error, _done } = await createProposal(question, options);
-      setResult(_result);
-      setDone(_done);
-      setError(_error);
-      console.log("Result: ", result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('questionForm.messages.error'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const formStyles = {
-    formGroup: {
-      marginBottom: "24px"
-    },
-    label: {
-      display: "block",
-      fontSize: "1rem",
-      fontWeight: "500",
-      marginBottom: "8px",
-      color: "#4a5568"
-    },
-    input: {
-      width: "100%",
-      padding: "12px 16px",
-      fontSize: "1rem",
-      borderRadius: "6px",
-      border: "1px solid #e2e8f0",
-      transition: "border-color 0.2s",
-      outline: "none"
-    },
-    optionContainer: {
-      display: "flex",
-      alignItems: "center",
-      marginBottom: "12px",
-      gap: "10px"
-    },
-    buttonSecondary: {
-      backgroundColor: "#f8f9fa",
-      border: "1px solid #e2e8f0",
-      color: "#4a5568",
-      padding: "8px 16px",
-      borderRadius: "6px",
-      fontSize: "0.9rem",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    },
-    buttonPrimary: {
-      backgroundColor: "#5856D6",
-      color: "white",
-      border: "none",
-      padding: "12px 24px",
-      borderRadius: "6px",
-      fontSize: "1rem",
-      fontWeight: "500",
-      cursor: "pointer",
-      transition: "background-color 0.2s"
-    },
-    buttonRemove: {
-      backgroundColor: "#fee2e2",
-      border: "none",
-      color: "#e53e3e",
-      padding: "8px 12px",
-      borderRadius: "6px",
-      fontSize: "0.9rem",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    },
-    success: {
-      backgroundColor: "#f0fff4",
-      color: "#38a169",
-      border: "1px solid #c6f6d5",
-      borderRadius: "6px",
-      padding: "16px",
-      marginTop: "20px"
-    },
-    error: {
-      backgroundColor: "#fff5f5",
-      color: "#e53e3e",
-      border: "1px solid #fed7d7",
-      borderRadius: "6px",
-      padding: "16px",
-      marginTop: "20px"
-    }
+    onCreateElection(electionName, candidates, schema, duration);
   };
 
   return (
-    <div>
-      <p style={{
-        color: "#4a5568",
-        marginBottom: "24px",
-        fontSize: "1.1rem",
-        lineHeight: "1.6"
-      }}>
-        {t('questionForm.intro')}
-      </p>
+    <Card p={0} borderRadius={1} mb={4} className="shadow-md overflow-hidden bg-white">
+      <Box p={4} borderBottom="1px solid #eee">
+        <Heading.h3 color="#333" m={0}>
+          Create New Election
+        </Heading.h3>
+      </Box>
       
-      <form onSubmit={handleSubmit}>
-        <div style={formStyles.formGroup}>
-          <label style={formStyles.label}>{t('questionForm.question.label')}</label>
-          <input
-            type="text"
-            value={question}
-            onChange={handleQuestionChange}
-            placeholder={t('questionForm.question.placeholder')}
-            required
-            style={formStyles.input}
-          />
-          <p style={{
-            fontSize: "0.9rem",
-            color: "#718096",
-            marginTop: "8px"
-          }}>
-            {t('questionForm.question.help')}
-          </p>
-        </div>
-        
-        <div style={formStyles.formGroup}>
-          <label style={formStyles.label}>{t('questionForm.options.label')}</label>
+      <Box p={4}>
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          <div style={{
-            backgroundColor: "#f8fafc",
-            padding: "20px",
-            borderRadius: "8px",
-            marginBottom: "16px"
-          }}>
-            {options.map((option, index) => (
-              <div key={index} style={formStyles.optionContainer}>
-                <div style={{
-                  backgroundColor: "#5856D6",
-                  color: "white",
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.9rem",
-                  fontWeight: "bold"
-                }}>
-                  {index + 1}
-                </div>
-                <input
-                  type="text"
-                  value={option}
-                  onChange={(e) => handleoptionChange(index, e)}
-                  placeholder={t('questionForm.options.placeholder', { number: index + 1 })}
-                  required
-                  style={{
-                    ...formStyles.input,
-                    flex: "1"
-                  }}
-                />
-                {options.length > 1 && (
-                  <button 
-                    type="button" 
-                    onClick={() => removeoptionField(index)}
-                    style={formStyles.buttonRemove}
-                  >
-                    {t('questionForm.options.remove')}
-                  </button>
-                )}
-              </div>
-            ))}
-            
-            <button 
-              type="button" 
-              onClick={addOptionField}
-              style={{
-                ...formStyles.buttonSecondary,
-                marginTop: "10px",
-                display: "flex",
-                alignItems: "center"
-              }}
-            >
-              <span style={{ marginRight: "8px" }}>+</span> {t('questionForm.options.add')}
-            </button>
+          {/* Election Name */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Election Name / Question
+            </label>
+            <input
+              type="text"
+              className="w-full p-3 border border-gray-300 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              placeholder="e.g. Who should be the next leader?"
+              value={electionName}
+              onChange={(e) => setElectionName(e.target.value)}
+              disabled={isSubmitting}
+            />
           </div>
-          
-          {error && (
-            <div style={formStyles.error}>
-              <p style={{ margin: 0 }}>{error}</p>
-            </div>
-          )}
-          
-          {done && (
-            <div style={formStyles.success}>
-              <p style={{ margin: 0 }}>{t('questionForm.messages.success')}</p>
-            </div>
-          )}
-        </div>
-        
-        <div style={{
-          marginTop: "30px",
-          display: "flex",
-          justifyContent: "flex-end"
-        }}>
-          <button 
-            type="submit" 
-            style={{
-              ...formStyles.buttonPrimary,
-              opacity: isSubmitting ? "0.7" : "1",
-              cursor: isSubmitting ? "not-allowed" : "pointer"
-            }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? t('questionForm.submit.submitting') : t('questionForm.submit.button')}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
-export default QuestionForm;
+          {/* Credential Schema */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Required Credential (Schema)
+            </label>
+            <select
+              className="w-full p-3 border border-gray-300 rounded bg-white focus:border-indigo-500 outline-none"
+              value={schema}
+              onChange={(e) => setSchema(e.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="VotingCredential">Standard Voter (VotingCredential)</option>
+              <option value="StudentCard">Student Card</option>
+              <option value="EmployeeBadge">Employee Badge</option>
+              <option value="CitizenshipCard">Citizenship Card</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Users must present this specific credential to vote.</p>
+          </div>
+
+          {/* Duration */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Voting Duration (Minutes)
+            </label>
+            <input
+              type="number"
+              className="w-full p-3 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              min="1"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Candidates */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              Candidates (Comma separated)
+            </label>
+            <textarea
+              className="w-full p-3 border border-gray-300 rounded h-32 focus:border-indigo-500 outline-none"
+              placeholder="Alice, Bob, Charlie..."
+              value={candidatesStr}
+              onChange={(e) => setCandidatesStr(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <Flex justifyContent="flex-end" pt={2}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              mainColor="#5856D6"
+              height="3rem"
+              px={4}
+            >
+              {isSubmitting ? "Creating..." : "Launch Election"}
+            </Button>
+          </Flex>
+        </form>
+      </Box>
+    </Card>
+  );
+};

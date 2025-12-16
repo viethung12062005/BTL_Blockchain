@@ -12,13 +12,9 @@ export const Header = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   
-  // Use the wallet context
   const { isConnected, account, connect, checkWalletState, chainId } = useWallet();
-  
-  // Get wallet environment info
   const walletEnv = getWalletEnvironmentInfo();
 
-  // Check wallet state on component mount
   useEffect(() => {
     checkWalletState();
   }, [checkWalletState]);
@@ -26,71 +22,46 @@ export const Header = () => {
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
-      // Close menu on desktop resize
       if (window.innerWidth >= 768) {
         setIsMenuOpen(false);
       }
     };
-    
     window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       const header = document.querySelector('header');
-      
       if (isMenuOpen && header && !header.contains(target)) {
         setIsMenuOpen(false);
       }
     };
-
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    if (isMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const closeMenu = () => setIsMenuOpen(false);
   
-  // Format address for display
   const shortenAddress = (address: string) => {
     if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  // Handle wallet connection based on environment
   const handleWalletConnect = () => {
     if (isConnected) {
-      // If already connected, just call connect to handle network switching
       connect();
       return;
     }
-
     if (walletEnv.isMobile && !walletEnv.isMetaMaskBrowser) {
-      // Mobile user outside MetaMask browser -> redirect to instructions
       navigate('/mobile-connect');
       return;
     }
-
-    // Desktop or MetaMask browser -> normal connect
     connect();
   };
 
-  // Get button text based on current state and environment
   const getButtonText = () => {
     if (isConnected) {
       if (chainId === BLOCKDAG_CHAIN_ID) {
@@ -99,24 +70,15 @@ export const Header = () => {
         return `${t('common.switchToNetwork')} ${t('common.networkName')}`;
       }
     }
-    
     if (walletEnv.isMobile && !walletEnv.isMetaMaskBrowser) {
       return `📱 ${t('common.mobileInstructions')}`;
     }
-    
-    if (walletEnv.isMobile && walletEnv.isMetaMaskBrowser) {
-      return t('common.connectWallet');
-    }
-    
     return t('common.connectWallet');
   };
 
-  // Get button status indicator
   const getNetworkIndicator = () => {
     if (!isConnected) return null;
-    
     const isCorrectNetwork = chainId === BLOCKDAG_CHAIN_ID;
-    
     return (
       <div style={{
         display: 'flex',
@@ -136,7 +98,7 @@ export const Header = () => {
     );
   };
 
-  // Estilos con tipado correcto usando CSSProperties
+  // Styles
   const headerStyle: CSSProperties = {
     backgroundColor: '#362463',
     color: 'white',
@@ -144,7 +106,7 @@ export const Header = () => {
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     position: 'sticky',
     top: 0,
-    zIndex: 1000, // Asegura que el header esté por encima de otros elementos
+    zIndex: 1000,
     width: '100%'
   };
 
@@ -255,9 +217,12 @@ export const Header = () => {
           <a href="/#how-it-works" style={linkStyle}>
             {t('common.howItWorks')}
           </a>
-          <Link to="/vote/passport" style={linkStyle}>
+          
+          {/* SỬA TẠI ĐÂY: Trỏ về /vote thay vì /vote/passport */}
+          <Link to="/vote" style={linkStyle}>
             {t('common.digitalVote')}
           </Link>
+          
           <Link to="/create-proposal" style={linkStyle}>
             {t('common.createProposal')}
           </Link>
@@ -279,7 +244,7 @@ export const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Menu Button (Hamburger) */}
+        {/* Mobile Menu Button */}
         <button 
           style={mobileMenuButtonStyle} 
           onClick={toggleMenu}
@@ -293,7 +258,7 @@ export const Header = () => {
           <Link to="/#how-it-works" style={linkStyle} onClick={closeMenu}>
             {t('common.howItWorks')}
           </Link>
-          <Link to="/vote/passport" style={linkStyle} onClick={closeMenu}>
+          <Link to="/vote" style={linkStyle} onClick={closeMenu}>
             {t('common.digitalVote')}
           </Link>
           <Link to="/create-proposal" style={linkStyle} onClick={closeMenu}>

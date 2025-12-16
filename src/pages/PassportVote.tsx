@@ -1,406 +1,186 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Header } from "../components/Header";
+import { Footer } from "../components/Footer";
+import { PrivadoIDService } from '../services/privadoService';
+import { useVote } from './VoteContext';
+import QRCode from 'react-qr-code';
 import { useTranslation } from 'react-i18next';
-import { Header } from '../components/Header';
-import { Footer } from '../components/Footer';
-import { useWallet } from '../context/WalletContext';
-
-const COUNTRIES = [
-  { code: 'CRI', name: 'Costa Rica', flag: '🇨🇷' },
-  { code: 'COL', name: 'Colombia', flag: '🇨🇴' },
-  { code: 'USA', name: 'Estados Unidos', flag: '🇺🇸' },
-  { code: 'CAN', name: 'Canadá', flag: '🇨🇦' },
-  { code: 'MEX', name: 'México', flag: '🇲🇽' },
-  { code: 'BRA', name: 'Brasil', flag: '🇧🇷' },
-  { code: 'ARG', name: 'Argentina', flag: '🇦🇷' },
-  { code: 'CHL', name: 'Chile', flag: '🇨🇱' },
-  { code: 'PER', name: 'Perú', flag: '🇵🇪' },
-  { code: 'VEN', name: 'Venezuela', flag: '🇻🇪' },
-  { code: 'ECU', name: 'Ecuador', flag: '🇪🇨' },
-  { code: 'URY', name: 'Uruguay', flag: '🇺🇾' },
-  { code: 'PRY', name: 'Paraguay', flag: '🇵🇾' },
-  { code: 'BOL', name: 'Bolivia', flag: '🇧🇴' },
-  { code: 'PAN', name: 'Panamá', flag: '🇵🇦' },
-  { code: 'CUB', name: 'Cuba', flag: '🇨🇺' },
-  { code: 'DOM', name: 'República Dominicana', flag: '🇩🇴' },
-  { code: 'JAM', name: 'Jamaica', flag: '🇯🇲' },
-  { code: 'HTI', name: 'Haití', flag: '🇭🇹' },
-  { code: 'GUY', name: 'Guyana', flag: '🇬🇾' },
-  { code: 'ESP', name: 'España', flag: '🇪🇸' },
-  { code: 'PRT', name: 'Portugal', flag: '🇵🇹' },
-  { code: 'FRA', name: 'Francia', flag: '🇫🇷' },
-  { code: 'DEU', name: 'Alemania', flag: '🇩🇪' },
-  { code: 'ITA', name: 'Italia', flag: '🇮🇹' },
-  { code: 'GBR', name: 'Reino Unido', flag: '🇬🇧' },
-  { code: 'NLD', name: 'Países Bajos', flag: '🇳🇱' },
-  { code: 'BEL', name: 'Bélgica', flag: '🇧🇪' },
-  { code: 'CHE', name: 'Suiza', flag: '🇨🇭' },
-  { code: 'SWE', name: 'Suecia', flag: '🇸🇪' },
-  { code: 'NOR', name: 'Noruega', flag: '🇳🇴' },
-  { code: 'DNK', name: 'Dinamarca', flag: '🇩🇰' },
-  { code: 'ISL', name: 'Islandia', flag: '🇮🇸' },
-  { code: 'RUS', name: 'Rusia', flag: '🇷🇺' },
-  { code: 'POL', name: 'Polonia', flag: '🇵🇱' },
-  { code: 'UKR', name: 'Ucrania', flag: '🇺🇦' },
-  { code: 'CZE', name: 'Chequia', flag: '🇨🇿' },
-  { code: 'AUT', name: 'Austria', flag: '🇦🇹' },
-  { code: 'GRC', name: 'Grecia', flag: '🇬🇷' },
-  { code: 'HUN', name: 'Hungría', flag: '🇭🇺' },
-  { code: 'ROU', name: 'Rumania', flag: '🇷🇴' },
-  { code: 'IRL', name: 'Irlanda', flag: '🇮🇪' },
-  { code: 'FIN', name: 'Finlandia', flag: '🇫🇮' },
-  { code: 'SRB', name: 'Serbia', flag: '🇷🇸' },
-  { code: 'HRV', name: 'Croacia', flag: '🇭🇷' },
-  { code: 'BGR', name: 'Bulgaria', flag: '🇧🇬' },
-  { code: 'SVK', name: 'Eslovaquia', flag: '🇸🇰' },
-  { code: 'SVN', name: 'Eslovenia', flag: '🇸🇮' },
-  { code: 'LUX', name: 'Luxemburgo', flag: '🇱🇺' },
-  { code: 'EST', name: 'Estonia', flag: '🇪🇪' },
-  { code: 'LVA', name: 'Letonia', flag: '🇱🇻' },
-  { code: 'LTU', name: 'Lituania', flag: '🇱🇹' },
-  { code: 'CHN', name: 'China', flag: '🇨🇳' },
-  { code: 'JPN', name: 'Japón', flag: '🇯🇵' },
-  { code: 'KOR', name: 'Corea del Sur', flag: '🇰🇷' },
-  { code: 'IND', name: 'India', flag: '🇮🇳' },
-  { code: 'IDN', name: 'Indonesia', flag: '🇮🇩' },
-  { code: 'TUR', name: 'Turquía', flag: '🇹🇷' },
-  { code: 'SAU', name: 'Arabia Saudita', flag: '🇸🇦' },
-  { code: 'ARE', name: 'Emiratos Árabes Unidos', flag: '🇦🇪' },
-  { code: 'ISR', name: 'Israel', flag: '🇮🇱' },
-  { code: 'IRN', name: 'Irán', flag: '🇮🇷' },
-  { code: 'IRQ', name: 'Irak', flag: '🇮🇶' },
-  { code: 'PAK', name: 'Pakistán', flag: '🇵🇰' },
-  { code: 'AFG', name: 'Afganistán', flag: '🇦🇫' },
-  { code: 'QAT', name: 'Catar', flag: '🇶🇦' },
-  { code: 'LBN', name: 'Líbano', flag: '🇱🇧' },
-  { code: 'JOR', name: 'Jordania', flag: '🇯🇴' },
-  { code: 'KWT', name: 'Kuwait', flag: '🇰🇼' },
-  { code: 'OMN', name: 'Omán', flag: '🇴🇲' },
-  { code: 'YEM', name: 'Yemen', flag: '🇾🇪' },
-  { code: 'THA', name: 'Tailandia', flag: '🇹🇭' },
-  { code: 'VNM', name: 'Vietnam', flag: '🇻🇳' },
-  { code: 'PHL', name: 'Filipinas', flag: '🇵🇭' },
-  { code: 'SGP', name: 'Singapur', flag: '🇸🇬' },
-  { code: 'MYS', name: 'Malasia', flag: '🇲🇾' },
-  { code: 'BGD', name: 'Bangladés', flag: '🇧🇩' },
-  { code: 'NPL', name: 'Nepal', flag: '🇳🇵' },
-  { code: 'LKA', name: 'Sri Lanka', flag: '🇱🇰' },
-  { code: 'MMR', name: 'Myanmar', flag: '🇲🇲' },
-  { code: 'MNG', name: 'Mongolia', flag: '🇲🇳' },
-  { code: 'KAZ', name: 'Kazajistán', flag: '🇰🇿' },
-  { code: 'UZB', name: 'Uzbekistán', flag: '🇺🇿' },
-  { code: 'TJK', name: 'Tayikistán', flag: '🇹🇯' },
-  { code: 'ZAF', name: 'Sudáfrica', flag: '🇿🇦' },
-  { code: 'NGA', name: 'Nigeria', flag: '🇳🇬' },
-  { code: 'EGY', name: 'Egipto', flag: '🇪🇬' },
-  { code: 'ETH', name: 'Etiopía', flag: '🇪🇹' },
-  { code: 'KEN', name: 'Kenia', flag: '🇰🇪' },
-  { code: 'TZA', name: 'Tanzania', flag: '🇹🇿' },
-  { code: 'UGA', name: 'Uganda', flag: '🇺🇬' },
-  { code: 'SDN', name: 'Sudán', flag: '🇸🇩' },
-  { code: 'DZA', name: 'Argelia', flag: '🇩🇿' },
-  { code: 'MAR', name: 'Marruecos', flag: '🇲🇦' },
-  { code: 'TUN', name: 'Túnez', flag: '🇹🇳' },
-  { code: 'SEN', name: 'Senegal', flag: '🇸🇳' },
-  { code: 'GHA', name: 'Ghana', flag: '🇬🇭' },
-  { code: 'CIV', name: 'Costa de Marfil', flag: '🇨🇮' },
-  { code: 'CMR', name: 'Camerún', flag: '🇨🇲' },
-  { code: 'ZMB', name: 'Zambia', flag: '🇿🇲' },
-  { code: 'ZWE', name: 'Zimbabue', flag: '🇿🇼' },
-  { code: 'MOZ', name: 'Mozambique', flag: '🇲🇿' },
-  { code: 'AGO', name: 'Angola', flag: '🇦🇴' },
-  { code: 'COD', name: 'R. D. del Congo', flag: '🇨🇩' },
-  { code: 'AUS', name: 'Australia', flag: '🇦🇺' },
-  { code: 'NZL', name: 'Nueva Zelanda', flag: '🇳🇿' },
-  { code: 'FJI', name: 'Fiyi', flag: '🇫🇯' },
-  { code: 'PNG', name: 'Papúa Nueva Guinea', flag: '🇵🇬' },
-];
 
 const PassportVote: React.FC = () => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { account, isConnected } = useWallet();
-  const [userId, setUserId] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState('CRI');
-  const [selectedMethod, setSelectedMethod] = useState<'firma-digital' | 'passport'>('passport');
+  const { markElectionAsVerified } = useVote();
+  
+  // 1. Lấy thông tin từ URL (Được truyền từ trang Vote.tsx)
+  const electionIdParam = searchParams.get('electionId');
+  const schemaParam = searchParams.get('schema'); 
+  const queryParamRaw = searchParams.get('query');
 
-  // Auto-fill user ID with MetaMask wallet address
+  const electionId = electionIdParam ? parseInt(electionIdParam) : 0;
+  
+  // Decode Query JSON từ URL
+  let queryParam = {};
+  try {
+      queryParam = queryParamRaw ? JSON.parse(decodeURIComponent(queryParamRaw)) : {};
+  } catch (e) {
+      console.error("Failed to parse query from URL", e);
+  }
+  
+  // State quản lý giao diện
+  const [qrCodeData, setQrCodeData] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>('');
+  const [status, setStatus] = useState<string>('Initializing...');
+  const [error, setError] = useState<string | null>(null);
+  
+  // Ref để tránh gọi API 2 lần khi component mount (React 18 Strict Mode)
+  const isRequesting = useRef(false);
+
+  // 2. Kiểm tra tính hợp lệ đầu vào
   useEffect(() => {
-    if (isConnected && account) {
-      setUserId(account);
+    if (!electionId) {
+      alert("Invalid Access: Missing Election ID");
+      navigate('/vote'); // Đá về trang danh sách nếu truy cập sai
     }
-  }, [isConnected, account]);
+  }, [electionId, navigate]);
 
-  const handleContinue = () => {
-    if (selectedMethod === 'firma-digital') {
-      navigate('/request-firma');
-    } else {
-      // Navigate to passport verification with user data
-      navigate('/vote/passport/verify', { 
-        state: { 
-          userId, 
-          nationality: selectedCountry,
-          eventId: process.env.VOTE_ID || `vote-${Date.now()}`
-        } 
-      });
-    }
-  };
+  // 3. Tạo QR Code (Chạy 1 lần duy nhất)
+  useEffect(() => {
+    const initSession = async () => {
+      if (!electionId || isRequesting.current) return;
+      isRequesting.current = true;
 
-  const isFormValid = userId.trim().length > 0 && isConnected;
+      try {
+        setStatus('Generating specialized QR Code...');
+        setError(null);
+        
+        // Gọi Service với thông tin đầy đủ từ URL
+        const response = await PrivadoIDService.requestVerificationLink({
+          electionId: electionId,
+          schemaType: schemaParam || "VotingCredential", // Fallback an toàn
+          query: queryParam
+        });
 
+        setQrCodeData(response.link);
+        setSessionId(response.sessionId);
+        setStatus('Ready to Scan');
+      } catch (e: any) {
+        console.error(e);
+        setError(e.message || 'Error generating QR code');
+        setStatus('Error');
+        isRequesting.current = false;
+      }
+    };
+
+    initSession();
+  }, [electionId, schemaParam]); // dependencies cơ bản
+
+  // 4. Polling kiểm tra kết quả (Liên tục hỏi Server Backend)
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const interval = setInterval(async () => {
+      const res = await PrivadoIDService.checkVerificationStatus(sessionId);
+      
+      if (res.status === 'verified') {
+        clearInterval(interval);
+        setStatus('✅ Identity Verified! Redirecting...');
+        
+        // QUAN TRỌNG: Lưu trạng thái vào Context toàn cục
+        markElectionAsVerified(electionId);
+        
+        // Chuyển hướng người dùng quay lại trang bỏ phiếu sau 1.5 giây
+        setTimeout(() => {
+          navigate('/vote');
+        }, 1500);
+      }
+    }, 2000); // Kiểm tra mỗi 2 giây
+
+    return () => clearInterval(interval);
+  }, [sessionId, electionId, markElectionAsVerified, navigate]);
+
+  // --- RENDER ---
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column"
-    }}>
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
-      <main style={{
-        flex: "1",
-        backgroundColor: "#f8f9fa",
-        padding: "40px 20px 80px"
-      }}>
-        <div style={{
-          maxWidth: "600px",
-          margin: "0 auto",
-          backgroundColor: "white",
-          borderRadius: "10px",
-          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
-          overflow: "hidden"
-        }}>
-          <div style={{
-            backgroundColor: "#5856D6",
-            padding: "25px 30px",
-            color: "white"
-          }}>
-            <h1 style={{
-              fontSize: "1.75rem",
-              fontWeight: "600",
-              margin: "0"
-            }}>{t('passport.title')}</h1>
-            <p style={{
-              margin: "8px 0 0",
-              opacity: "0.9"
-            }}>{t('passport.subtitle')}</p>
+      <main className="flex-1 flex flex-col items-center justify-center p-6">
+        
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+          
+          {/* Header Card */}
+          <div className="bg-indigo-600 p-6 text-center">
+            <h2 className="text-2xl font-bold text-white mb-1">
+              {t('passport.verification') || "Identity Verification"}
+            </h2>
+            <p className="text-indigo-100 text-sm">
+              Securely prove your eligibility
+            </p>
           </div>
           
-          <div style={{
-            padding: "30px"
-          }}>
-            <form onSubmit={(e) => { e.preventDefault(); handleContinue(); }}>
-              
-              {/* Wallet Connection Status */}
-              {!isConnected && (
-                <div style={{
-                  marginBottom: "24px",
-                  padding: "16px",
-                  backgroundColor: "#fef3cd",
-                  border: "1px solid #ffeaa7",
-                  borderRadius: "8px",
-                  textAlign: "center"
-                }}>
-                  <p style={{
-                    margin: "0",
-                    color: "#8b5a00",
-                    fontSize: "0.875rem",
-                    fontWeight: "500"
-                  }}>
-                    {t('passport.connectWalletMessage')}
-                  </p>
-                </div>
-              )}
-
-              {/* User ID Input */}
-              <div style={{ marginBottom: "24px" }}>
-                {isConnected && account && (
-                  <div style={{
-                    backgroundColor: "#f0fff4",
-                    color: "#38a169",
-                    border: "1px solid #c6f6d5",
-                    borderRadius: "6px",
-                    padding: "12px",
-                    marginBottom: "20px",
-                    textAlign: "center",
-                    fontSize: "14px"
-                  }}>
-                    <p style={{ margin: 0 }}>{t('common.connectedAs')}: {account}</p>
-                  </div>
-                )}
-                <input
-                  type="hidden"
-                  id="userId"
-                  value={userId}
-                  readOnly
-                  placeholder={t('passport.userIdPlaceholder')}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
-                    fontSize: "1rem",
-                    outline: "none",
-                    backgroundColor: isConnected ? "#f9f9f9" : "#f5f5f5",
-                    cursor: "not-allowed",
-                    color: isConnected ? "#374151" : "#9ca3af"
-                  }}
-                  required
-                />
-                {!isConnected && (
-                  <p style={{ 
-                    color: "#6b7280", 
-                    fontSize: "0.75rem", 
-                    marginTop: "4px",
-                    margin: "4px 0 0" 
-                  }}>
-                    {t('passport.walletNotConnectedDisabled')}
-                  </p>
-                )}
-              </div>
-
-              {/* Authentication Method Selection */}
-              <div style={{ marginBottom: "24px" }}>
-                <label style={{
-                  display: "block",
-                  fontSize: "0.875rem",
-                  fontWeight: "500",
-                  color: isConnected ? "#374151" : "#9ca3af",
-                  marginBottom: "12px"
-                }}>
-                  {t('passport.authMethod')}:
-                </label>
-                
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <label style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "12px",
-                    border: `2px solid ${selectedMethod === 'firma-digital' ? (isConnected ? '#5856D6' : '#d1d5db') : '#e5e7eb'}`,
-                    borderRadius: "8px",
-                    cursor: isConnected ? "pointer" : "not-allowed",
-                    backgroundColor: selectedMethod === 'firma-digital' ? (isConnected ? '#f8f7ff' : '#f9f9f9') : (isConnected ? 'white' : '#f9f9f9'),
-                    opacity: isConnected ? 1 : 0.6
-                  }}>
-                    <input
-                      type="radio"
-                      name="authMethod"
-                      value="firma-digital"
-                      checked={selectedMethod === 'firma-digital'}
-                      onChange={(e) => setSelectedMethod(e.target.value as 'firma-digital' | 'passport')}
-                      style={{ marginRight: "12px" }}
-                      disabled={!isConnected}
-                    />
-                    <span style={{ fontSize: "1.2rem", marginRight: "8px" }}>🔐</span>
-                    <span style={{ fontWeight: "500", color: isConnected ? "inherit" : "#9ca3af" }}>{t('passport.firmaDigital')}</span>
-                  </label>
-
-                  <label style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "12px",
-                    border: `2px solid ${selectedMethod === 'passport' ? (isConnected ? '#5856D6' : '#d1d5db') : '#e5e7eb'}`,
-                    borderRadius: "8px",
-                    cursor: isConnected ? "pointer" : "not-allowed",
-                    backgroundColor: selectedMethod === 'passport' ? (isConnected ? '#f8f7ff' : '#f9f9f9') : (isConnected ? 'white' : '#f9f9f9'),
-                    opacity: isConnected ? 1 : 0.6
-                  }}>
-                    <input
-                      type="radio"
-                      name="authMethod"
-                      value="passport"
-                      checked={selectedMethod === 'passport'}
-                      onChange={(e) => setSelectedMethod(e.target.value as 'firma-digital' | 'passport')}
-                      style={{ marginRight: "12px" }}
-                      disabled={!isConnected}
-                    />
-                    <span style={{ fontSize: "1.2rem", marginRight: "8px" }}>🛂</span>
-                    <span style={{ fontWeight: "500", color: isConnected ? "inherit" : "#9ca3af" }}>{t('passport.passport')}</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Country Selection (only shown for passport method) */}
-              {selectedMethod === 'passport' && (
-                <div style={{ marginBottom: "24px" }}>
-                  <label 
-                    htmlFor="country" 
-                    style={{
-                      display: "block",
-                      fontSize: "0.875rem",
-                      fontWeight: "500",
-                      color: isConnected ? "#374151" : "#9ca3af",
-                      marginBottom: "6px"
-                    }}
-                  >
-                    {t('passport.country')}:
-                  </label>
-                  <select
-                    id="country"
-                    value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
-                    disabled={!isConnected}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "1rem",
-                      backgroundColor: isConnected ? "white" : "#f9f9f9",
-                      outline: "none",
-                      cursor: isConnected ? "pointer" : "not-allowed",
-                      opacity: isConnected ? 1 : 0.6
-                    }}
-                  >
-                    {COUNTRIES.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.flag} {country.name} ({country.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Continue Button */}
-              <button
-                type="button"
-                disabled={!isFormValid}
-                onClick={handleContinue}
-                style={{
-                  width: "100%",
-                  backgroundColor: isFormValid ? "#5856D6" : "#9ca3af",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "14px",
-                  fontSize: "1rem",
-                  fontWeight: "600",
-                  cursor: isFormValid ? "pointer" : "not-allowed",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                {t('passport.continue')}
-              </button>
-            </form>
-
-            {/* Information Box */}
-            <div style={{
-              marginTop: "24px",
-              padding: "16px",
-              backgroundColor: "#f0f9ff",
-              border: "1px solid #bae6fd",
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-              color: "#0369a1"
-            }}>
-              <h4 style={{ margin: "0 0 8px", fontWeight: "600" }}>
-                {t('passport.infoTitle')}
-              </h4>
-              <p style={{ margin: "0" }}>
-                {selectedMethod === 'passport' 
-                  ? t('passport.passportInfo')
-                  : t('passport.firmaDigitalInfo')
-                }
+          <div className="p-8 text-center">
+            {/* Info Block */}
+            <div className="bg-blue-50 p-4 rounded-lg mb-6 text-left border-l-4 border-blue-500">
+              <p className="text-sm text-blue-900 mb-1">
+                <strong>Election ID:</strong> #{electionId}
+              </p>
+              <p className="text-sm text-blue-900">
+                <strong>Required Credential:</strong> <span className="font-mono bg-blue-100 px-1 rounded">{schemaParam || "Standard Credential"}</span>
               </p>
             </div>
+            
+            {/* QR Code Area */}
+            <div className="flex justify-center mb-6 p-4 bg-white border-2 border-gray-100 rounded-xl min-h-[280px] items-center shadow-inner relative">
+              {error ? (
+                <div className="text-red-500 flex flex-col items-center">
+                  <span className="text-3xl mb-2">⚠️</span>
+                  <p>{error}</p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : qrCodeData ? (
+                <div className="animate-fade-in">
+                  <QRCode 
+                    value={qrCodeData} 
+                    size={256} 
+                    style={{ maxWidth: "100%", height: "auto" }}
+                    level="M" 
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-gray-400">
+                  <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                  <span>{status}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Status Text */}
+            <p className={`font-bold text-lg transition-colors duration-300 ${status.includes('Verified') ? 'text-green-600 scale-105' : 'text-gray-700'}`}>
+              {status}
+            </p>
+
+            {/* Instructions */}
+            <div className="mt-8 pt-6 border-t border-gray-100 text-left">
+              <h4 className="text-sm font-bold text-gray-700 mb-2">Instructions:</h4>
+              <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                <li>Open <strong>Polygon ID Wallet</strong> on your mobile.</li>
+                <li>Tap the <strong>Scan</strong> button.</li>
+                <li>Scan the QR code above.</li>
+                <li>Approve the proof request in your wallet.</li>
+              </ol>
+            </div>
+            
+            <button 
+              onClick={() => navigate('/vote')}
+              className="mt-6 text-gray-400 hover:text-gray-600 text-sm underline"
+            >
+              Cancel and return to voting
+            </button>
           </div>
         </div>
       </main>

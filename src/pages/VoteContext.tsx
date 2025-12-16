@@ -1,74 +1,56 @@
-import React, { createContext, useState, ReactNode, useContext, useEffect } from "react";
-import { useWallet } from "../context/WalletContext";
+import React, { createContext, useState, useContext, ReactNode } from 'react';
 
-type AuthMethod = 'firma-digital' | 'passport' | null;
+interface VoteContextType {
+  // Mảng lưu các ID cuộc bầu cử đã xác thực. Ví dụ: [1, 5] nghĩa là đã xong cho Election 1 và 5.
+  verifiedElectionIds: number[];
+  
+  // Hàm đánh dấu một cuộc bầu cử là đã xong xác thực
+  markElectionAsVerified: (electionId: number) => void;
+  
+  // Hàm kiểm tra nhanh trạng thái xác thực của một cuộc bầu cử
+  hasVerifiedForElection: (electionId: number) => boolean;
 
-type VoteContextType = {
-  verifiableCredential: Record<string, any> | null;
-  setVerifiableCredential: (vc: Record<string, any> | null) => void;
-  voteScope: number | null;
-  setVoteScope: (index: number | null) => void;
-  hasVoted: boolean;
-  setHasVoted: (voted: boolean) => void;
-  isLoading: boolean;
-  authMethod: AuthMethod;
-  setAuthMethod: (method: AuthMethod) => void;
-  passportProof: any | null;
-  setPassportProof: (proof: any | null) => void;
-};
+  // Phương thức xác thực (mặc định cho hệ thống mới)
+  authMethod: string; 
+}
 
 const VoteContext = createContext<VoteContextType | undefined>(undefined);
 
 export const VoteProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [verifiableCredential, setVerifiableCredential] = useState<Record<string, any> | null>(null);
-  const [voteScope, setVoteScope] = useState<number | null>(null);
-  const [hasVoted, setHasVoted] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [authMethod, setAuthMethod] = useState<AuthMethod>(null);
-  const [passportProof, setPassportProof] = useState<any | null>(null);
+  // State lưu trữ danh sách ID
+  const [verifiedElectionIds, setVerifiedElectionIds] = useState<number[]>([]);
   
-  // Integrar con el contexto de wallet
-  const { isConnected, account } = useWallet();
+  const authMethod = "polygon-id";
 
-  // Efecto para limpiar el estado cuando la wallet se desconecta
-  useEffect(() => {
-    if (!isConnected || !account) {
-      // Si la wallet se desconecta, reiniciamos el estado del contexto de voto
-      setVerifiableCredential(null);
-      setPassportProof(null);
-      setAuthMethod(null);
-      setHasVoted(false);
-      setIsLoading(false);
+  // Hàm thêm ID vào danh sách đã xác thực
+  const markElectionAsVerified = (electionId: number) => {
+    if (!verifiedElectionIds.includes(electionId)) {
+      console.log(`✅ [Context] User verified for Election #${electionId}`);
+      setVerifiedElectionIds(prev => [...prev, electionId]);
     }
-  }, [isConnected, account]);
+  };
 
-  // Proporciona solo un objeto de valores memoizados
-  const value = {
-    verifiableCredential,
-    setVerifiableCredential,
-    voteScope,
-    setVoteScope,
-    hasVoted,
-    setHasVoted,
-    isLoading,
-    authMethod,
-    setAuthMethod,
-    passportProof,
-    setPassportProof
+  // Hàm kiểm tra
+  const hasVerifiedForElection = (electionId: number) => {
+    return verifiedElectionIds.includes(electionId);
   };
 
   return (
-    <VoteContext.Provider value={value}>
+    <VoteContext.Provider value={{
+      verifiedElectionIds,
+      markElectionAsVerified,
+      hasVerifiedForElection,
+      authMethod
+    }}>
       {children}
     </VoteContext.Provider>
   );
 };
 
-// Custom hook para usar el contexto
 export const useVote = () => {
   const context = useContext(VoteContext);
-  if (!context) {
-    throw new Error("useVote must be used within a VoteProvider");
+  if (context === undefined) {
+    throw new Error('useVote must be used within a VoteProvider');
   }
   return context;
 };
